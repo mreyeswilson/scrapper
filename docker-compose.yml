@@ -1,0 +1,16 @@
+version: '3'
+services:
+  db:
+    image: mongo
+    container_name: mongo_db
+    restart: always
+    volumes:
+      - ./mongo:/etc/mongo
+    ports:
+      - 27017:27017
+  app:
+    build: .
+    container_name: scheduler
+    image: benglish_scheduler
+    depends_on:
+      - db
