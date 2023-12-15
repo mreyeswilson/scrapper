@@ -8,7 +8,7 @@
             "name": "Python: archivo actual",
             "type": "python",
             "request": "launch",
-            "program": "app2/main.py",
+            "program": "app/main.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }

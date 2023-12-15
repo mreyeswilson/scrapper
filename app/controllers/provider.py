@@ -1,5 +1,6 @@
 import json
 import re
+import requests
 from requests import Session
 from bs4 import BeautifulSoup
 from models.clase import Clase
@@ -8,6 +9,7 @@ from models.user import User
 from log import logger
 from typing import List
 from datetime import datetime
+from urllib.parse import urlencode
 
 
 class Provider:
@@ -134,6 +136,26 @@ class Provider:
             
         return output
     
+    def send_program_request(self, url, data: dict):
+        encoded_data=urlencode(data)
+
+        res = self.session.post(url, data=encoded_data, headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Origin": "https://www.beprogrammer.site",
+            "Referer": url,
+            "Autority": "www.beprogrammer.site",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "Accept-Language": "es-US,es-419;q=0.9,es;q=0.8,en;q=0.7",
+            "Cache-Control": "max-age=0",
+            "Connection": "keep-alive",
+        })
+        self.session.get(res.url)
+        return res
+    
+    def create_soup(self, url):
+        content = self.session.get(url).content
+        return BeautifulSoup(content, "html.parser")
+        
     @property
     def cookies(self):
         if self.session:

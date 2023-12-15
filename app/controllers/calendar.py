@@ -8,6 +8,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from models.event import Event
 
+from datetime import datetime, timedelta
+
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
@@ -54,12 +56,18 @@ class Calendar:
         ).execute())
         events = events_result.get("items", [])
         return events
+    
+    def delete_event(self, id):
+        self.service.events().delete(
+            calendarId="primary",
+            eventId=id
+        ).execute()
 
     def create_event(self, event):
         try:
             evt = Event(**event)
             event = self.service.events().insert(
                 calendarId="primary", body=evt.__dict__).execute()
-            print('Event created: %s' % (event.get('htmlLink')))
+            return event.get('id')
         except Exception as e:
             print("Error:", e)

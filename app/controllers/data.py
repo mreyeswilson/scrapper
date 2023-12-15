@@ -2,10 +2,12 @@ from models.clase import Clase
 import pymongo
 import os
 from bson import json_util
+from bson.objectid import ObjectId
 from log import logger
 from controllers.provider import Provider
 from models.user import User
 from datetime import timedelta, datetime
+from controllers.utils import Util
 
 class Data:
 
@@ -57,5 +59,36 @@ class Data:
         })
 
         classes = [Clase(**result) for result in results]
-        print(json_util.dumps([clase.as_dict() for clase in classes]))
+        # print(json_util.dumps([clase.as_dict() for clase in classes]))
         return classes
+
+    def save_programmed_clases(self, clases: list[Clase], usr):
+        col = self.db["schedule"]
+        next_moday = Util.get_next_monday()
+        week = next_moday.isocalendar().week
+
+        obj = {}
+        obj["user"] = usr.id
+        obj["week"] = week
+        obj["classes"] = []
+
+        for clase in clases:
+            obj["classes"].append({
+                "id": clase.id,
+                "event_id": clase.event_id
+            })
+
+        col.update_one({"week": week}, {
+            "$set": obj
+        }, True)
+
+    def get_week_classes(self, week, user_id):
+        col = self.db["schedule"]
+        return col.find_one({"week": week, "user": user_id})
+    
+    def update_schedule(self, schedule):
+        print(schedule)
+        col = self.db["schedule"]
+        col.update_one({"_id": ObjectId(schedule["_id"])}, {
+            "$set": schedule
+        })

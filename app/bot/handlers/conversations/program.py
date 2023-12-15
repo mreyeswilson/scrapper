@@ -4,6 +4,7 @@ import re
 from controllers.notify import Notify
 from controllers.programmer import Programmer
 from inject import app
+from log import logger
 
 CODE = range(1)
 
@@ -20,11 +21,14 @@ async def code(update: Update, context):
         return CODE
     try:
         programmer = app.get(Programmer)
-        classes = await programmer.start(update, code)
-        for clase in classes:
-            await update.message.reply_text(f"*{clase.title}*\n\n*Fecha:* {clase.start.date()}\n*Hora:* {clase.start.time()}\n*Link:* {clase.link}", parse_mode="MarkdownV2")
-    except:
-        return ConversationHandler.END
+        clases = await programmer.start(update, code)
+        programmer.data.save_programmed_clases(clases, programmer.usr)
+
+        await Notify.info(update, "Clases programadas correctamente!")
+    except Exception as e:
+        logger.error(e)
+    
+    return ConversationHandler.END
 
 
 
