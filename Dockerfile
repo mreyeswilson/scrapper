@@ -16,6 +16,7 @@ RUN pip install -r requirements.txt
 
 COPY app/. .
 COPY credentials.json .
+COPY token.json .
 
 
 CMD ["python", "-u", "main.py"]

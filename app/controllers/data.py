@@ -1,13 +1,16 @@
-from models.clase import Clase
-import pymongo
 import os
+import re
+from datetime import datetime, timedelta
+
+import pymongo
 from bson import json_util
 from bson.objectid import ObjectId
-from log import logger
 from controllers.provider import Provider
-from models.user import User
-from datetime import timedelta, datetime
 from controllers.utils import Util
+from log import logger
+from models.clase import Clase
+from models.user import User
+
 
 class Data:
 
@@ -18,7 +21,7 @@ class Data:
 
     def update_classes(self):
         col = self.db["clases"]
-        try: 
+        try:
             result = col.delete_many({})
             logger.warn(f"Item deleted: {result.deleted_count}")
 
@@ -39,13 +42,33 @@ class Data:
             return usr
         except Exception as e:
             raise Exception(e)
-    
+
+    def get_users(self) -> list[User]:
+        col = self.db["users"]
+        cursor = col.find({})
+        return [User(**usr) for usr in cursor]
+
     def get_user_by_code(self, code) -> User:
         col = self.db["users"]
-        result = col.find_one({ "code": code })
+        result = col.find_one({"code": code})
         if result:
             return User(**result)
-        
+
+    def get_oral_test_classes(self) -> list[Clase]:
+        col = self.db["clases"]
+        pattern = re.compile(f"^(ORAL TEST | ADULTOS)")
+        results = col.find({
+            "start": {
+                "$gt": datetime.now().replace(hour=0, minute=0, second=0) + timedelta(days=1)
+            },
+            "title": {
+                "$regex": pattern
+            }
+        })
+        classes = [Clase(**result) for result in results]
+        # print(json_util.dumps([clase.as_dict() for clase in classes]))
+        return classes
+
     def get_clases_by_date(self, date: datetime, type):
         col = self.db["clases"]
         results = col.find({
@@ -62,6 +85,25 @@ class Data:
         # print(json_util.dumps([clase.as_dict() for clase in classes]))
         return classes
 
+    def get_schedule(self, id, week=None, all=False):
+        filter = {
+            "user": id,
+        }
+        col = self.db["schedule"]
+
+        if not all:
+            if week is None:
+                week = datetime.now().isocalendar().week
+            filter.update({"week": week})
+            return col.find_one(filter)
+        return [sch for sch in col.find(filter)]
+    
+    def get_class_by_id(self, id):
+        col = self.db["classes"]
+        return col.find_one({
+            "id": id,
+        })
+
     def save_programmed_clases(self, clases: list[Clase], usr):
         col = self.db["schedule"]
         next_moday = Util.get_next_monday()
@@ -75,7 +117,8 @@ class Data:
         for clase in clases:
             obj["classes"].append({
                 "id": clase.id,
-                "event_id": clase.event_id
+                "event_id": clase.event_id,
+                "attendance": {}
             })
 
         col.update_one({"week": week}, {
@@ -85,10 +128,23 @@ class Data:
     def get_week_classes(self, week, user_id):
         col = self.db["schedule"]
         return col.find_one({"week": week, "user": user_id})
-    
+
     def update_schedule(self, schedule):
-        print(schedule)
         col = self.db["schedule"]
         col.update_one({"_id": ObjectId(schedule["_id"])}, {
             "$set": schedule
         })
+
+    def update_profile(self):
+        col = self.db["users"]
+        for user in col.find({}):
+            self._provider.autenticate(user["code"])
+            usr = self._provider.get_profile()
+            col.find_one_and_update({
+                "code": usr.code
+            }, {
+                "$set": {
+                    "profile": usr.profile
+                }
+            })
+            logger.info("Perfil actualizado!")

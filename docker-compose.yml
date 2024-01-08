@@ -4,8 +4,8 @@ services:
     image: mongo
     container_name: mongo_db
     restart: always
-    # volumes:
-    #   - ./mongo:/etc/mongo
+    volumes:
+      - ./mongo:/data/db
     ports:
       - 27017:27017
   app:

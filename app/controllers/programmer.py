@@ -7,6 +7,7 @@ from uuid import uuid4
 from controllers.utils import Util
 from models.clase import ClassStatus
 from models.clase import Clase
+from log import logger
 
 class Programmer:
 
@@ -56,7 +57,7 @@ class Programmer:
 
             if cont > 6:
                 if off:
-                    await Notify.warn(msg)
+                    await Notify.warn(self.update, msg)
                     raise Exception(
                         "No se encontró un bcheck para ti esta semana, no se puede continuar.")
                 cont = 0
@@ -103,6 +104,23 @@ class Programmer:
             cont += 1
 
         return programmed
+    
+    async def program_oral_test(self, code):
+        usr = self.data.get_user_by_code(code)
+        classes = self.data.get_oral_test_classes()
+        for clase in classes:
+            print(clase.title, clase.start)
+            url = clase.url.replace("/13/", f"/{usr.id}/")
+            clase.link, status = await self.__toggle_class_status(url)
+            
+            if status == "maxcupo":
+                continue
+            if status == "ok":
+                self.__create_event(clase)
+                break
+
+            await Notify.error(self.update, "No se pudo programar el oral test")
+            return
 
     async def cancel_classes(self, code):
         code = code.upper()
@@ -122,18 +140,21 @@ class Programmer:
             url = domain + f"{usr.id}/{clase['id']}"
             _, status = await self.__toggle_class_status(url, cancel=True)
             if status == 200:
-                self.calendar.delete_event(clase["event_id"])
-                clase["cancelled"] = True
+                try:
+                    self.calendar.delete_event(clase["event_id"])
+                    clase["cancelled"] = True
+                except Exception as e:
+                    logger.error(e)
 
         week_schedule["classes"] = [clase for clase in classes if not clase["cancelled"]]
         self.data.update_schedule(week_schedule)
 
-        return f"{5 - len(classes)} canceladas correctamente!"
+        return f"Clases canceladas correctamente!"
 
     async def __toggle_class_status(self, url, cancel = False, code = None):
-        if code:
+        if not self.data._provider.code:
             self.data._provider.autenticate(code)
-            
+
         soup = self.data._provider.create_soup(url)
         form = soup.find("form", attrs={"name": "programar"})
 

@@ -19,6 +19,7 @@ class Provider:
     CLASES = f"{DOMAIN}/clases/sede/13"
     PROFILE = f"{DOMAIN}/clientes/perfil_usuarios"
     HOME = f"{DOMAIN}/welcome"
+    SCHEDULE = f"{DOMAIN}/clientes/asesorias"
 
     def __init__(self):
         self.session = None
@@ -41,7 +42,40 @@ class Provider:
                 return
             
             self.session = session
+            self.code = code
             return self
+
+    def get_scheduled_classes(self, id) -> list[Clase]:
+        content = self.__make_get_request(f"{self.SCHEDULE}/{id}")
+        soup = BeautifulSoup(content, "html.parser")
+
+        script = soup.find_all("script")[7]
+
+        script_content = script.string
+
+        match = re.search(r'events\:\s(\[[\s\S]*?\])', script_content)
+        regex = r'''(?<=[}\]"']),(?!\s*[{["'])'''
+
+        try:
+            found = match.group(1).replace("'", '"')
+            found = found.replace("id:", '"id":')
+            found = found.replace("title:", '"title":')
+            found = found.replace("start:", '"start":')
+            found = found.replace("url:", '"url":')
+            found = found.replace("color:", '"color":')
+            found = found.replace('"VIRTUAL  | KIDS"', 'VIRTUAL  | KIDS"')
+            result = re.sub(regex, "", found, 0)
+            
+            classes = []
+
+            for item in json.loads(result):
+                item["start"] = datetime.strptime(item["start"], '%Y-%m-%dT%H:%M')
+                clase = Clase(**item)
+                classes.append(clase)
+            return classes
+        except Exception as e:
+            print("Error parsing JSON:", e)
+            return []
 
     def get_clases(self) -> List[Clase]:
         content = self.__make_get_request(self.CLASES)
@@ -118,7 +152,8 @@ class Provider:
         return ""
     
     def get_attendance(self):
-        content = self.__make_get_request(self.PROFILE)
+        user = self.get_profile()
+        content = self.__make_get_request(f"{self.PROFILE}/{user.id}")
         soup = BeautifulSoup(content, "html.parser")
         filas = soup.find_all("tbody")[1].find_all("tr")
         output = []

@@ -1,4 +1,6 @@
 from dotenv import load_dotenv
+import multiprocessing
+from jobs import start_jobs
 load_dotenv()
 
 import os
@@ -11,6 +13,10 @@ app = ApplicationBuilder().token(token).build()
 
 app = set_commands(app)
 
+jobs_process = multiprocessing.Process(target=start_jobs, name="Schedule jobs process")
+
 if __name__ == "__main__":
+    jobs_process.start()
+
     logger.info("Bot running...")
     app.run_polling()

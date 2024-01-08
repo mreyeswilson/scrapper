@@ -1,7 +1,6 @@
 from bson.objectid import ObjectId
 
 class User:
-    
 
     def __init__(self, code, name, profile, id, since, until, _id=None) -> None:
         self._id = _id or ObjectId()
