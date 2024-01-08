@@ -195,4 +195,4 @@ class Provider:
     def cookies(self):
         if self.session:
             return self.session.cookies.get_dict()
-        return None
+        return {}
